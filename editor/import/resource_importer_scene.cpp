@@ -411,17 +411,7 @@ Node *ResourceImporterScene::_fix_node(Node *p_node, Node *p_root, Map<Ref<Mesh>
 					memdelete(p_node);
 					p_node = col;
 
-					int idx = 0;
-					for (List<Ref<Shape> >::Element *E = shapes.front(); E; E = E->next()) {
-
-						CollisionShape *cshape = memnew(CollisionShape);
-						cshape->set_shape(E->get());
-						col->add_child(cshape);
-
-						cshape->set_name("shape" + itos(idx));
-						cshape->set_owner(col->get_owner());
-						idx++;
-					}
+					_add_shapes(col, shapes);
 				}
 			}
 
@@ -485,17 +475,7 @@ Node *ResourceImporterScene::_fix_node(Node *p_node, Node *p_root, Map<Ref<Mesh>
 			rigid_body->add_child(mi);
 			mi->set_owner(rigid_body->get_owner());
 
-			int idx = 0;
-			for (List<Ref<Shape> >::Element *E = shapes.front(); E; E = E->next()) {
-
-				CollisionShape *cshape = memnew(CollisionShape);
-				cshape->set_shape(E->get());
-				rigid_body->add_child(cshape);
-
-				cshape->set_name("shape" + itos(idx));
-				cshape->set_owner(p_node->get_owner());
-				idx++;
-			}
+			_add_shapes(rigid_body, shapes);
 		}
 
 	} else if ((_teststr(name, "col") || (_teststr(name, "convcol"))) && Object::cast_to<MeshInstance>(p_node)) {
@@ -535,18 +515,7 @@ Node *ResourceImporterScene::_fix_node(Node *p_node, Node *p_root, Map<Ref<Mesh>
 				mi->add_child(col);
 				col->set_owner(mi->get_owner());
 
-				int idx = 0;
-				for (List<Ref<Shape> >::Element *E = shapes.front(); E; E = E->next()) {
-
-					CollisionShape *cshape = memnew(CollisionShape);
-					cshape->set_shape(E->get());
-					col->add_child(cshape);
-
-					cshape->set_name("shape" + itos(idx));
-					cshape->set_owner(p_node->get_owner());
-
-					idx++;
-				}
+				_add_shapes(col, shapes);
 			}
 		}
 
@@ -637,17 +606,7 @@ Node *ResourceImporterScene::_fix_node(Node *p_node, Node *p_root, Map<Ref<Mesh>
 				p_node->add_child(col);
 				col->set_owner(p_node->get_owner());
 
-				int idx = 0;
-				for (List<Ref<Shape> >::Element *E = shapes.front(); E; E = E->next()) {
-
-					CollisionShape *cshape = memnew(CollisionShape);
-					cshape->set_shape(E->get());
-					col->add_child(cshape);
-
-					cshape->set_name("shape" + itos(idx));
-					cshape->set_owner(p_node->get_owner());
-					idx++;
-				}
+				_add_shapes(col, shapes);
 			}
 		}
 	}
@@ -1158,6 +1117,7 @@ void ResourceImporterScene::get_import_options(List<ImportOption> *r_options, in
 	r_options->push_back(ImportOption(PropertyInfo(Variant::REAL, "nodes/root_scale", PROPERTY_HINT_RANGE, "0.001,1000,0.001"), 1.0));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::STRING, "nodes/custom_script", PROPERTY_HINT_FILE, script_ext_hint), ""));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "nodes/storage", PROPERTY_HINT_ENUM, "Single Scene,Instanced Sub-Scenes"), scenes_out ? 1 : 0));
+	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "nodes/use_legacy_names"), true));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "materials/location", PROPERTY_HINT_ENUM, "Node,Mesh"), (meshes_out || materials_out) ? 1 : 0));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::INT, "materials/storage", PROPERTY_HINT_ENUM, "Built-In,Files (.material),Files (.tres)", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_UPDATE_ALL_IF_MODIFIED), materials_out ? 1 : 0));
 	r_options->push_back(ImportOption(PropertyInfo(Variant::BOOL, "materials/keep_on_reimport"), materials_out));
@@ -1196,6 +1156,19 @@ void ResourceImporterScene::_replace_owner(Node *p_node, Node *p_scene, Node *p_
 	for (int i = 0; i < p_node->get_child_count(); i++) {
 		Node *n = p_node->get_child(i);
 		_replace_owner(n, p_scene, p_new_owner);
+	}
+}
+
+void ResourceImporterScene::_add_shapes(Node *p_node, const List<Ref<Shape> > &p_shapes) {
+	int idx = 0;
+	for (const List<Ref<Shape> >::Element *E = p_shapes.front(); E; E = E->next()) {
+		CollisionShape *cshape = memnew(CollisionShape);
+		cshape->set_shape(E->get());
+		p_node->add_child(cshape);
+
+		cshape->set_name("shape" + itos(idx));
+		cshape->set_owner(p_node->get_owner());
+		idx++;
 	}
 }
 
@@ -1311,6 +1284,9 @@ Error ResourceImporterScene::import(const String &p_source_file, const String &p
 
 	if (bool(p_options["skins/use_named_skins"]))
 		import_flags |= EditorSceneImporter::IMPORT_USE_NAMED_SKIN_BINDS;
+
+	if (bool(p_options["nodes/use_legacy_names"]))
+		import_flags |= EditorSceneImporter::IMPORT_USE_LEGACY_NAMES;
 
 	Error err = OK;
 	List<String> missing_deps; // for now, not much will be done with this
